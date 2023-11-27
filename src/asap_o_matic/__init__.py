@@ -32,7 +32,7 @@ app = typer.Typer(
 verbosity_level = 0
 
 
-def version_callback(value: bool) -> None:  # noqa FBT001
+def version_callback(value: bool) -> None:  # FBT001
     """Prints the version of the package."""
     if value:
         rp(f"[yellow]asap-to-kite[/] version: [bold blue]{__version__}[/]")

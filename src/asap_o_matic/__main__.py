@@ -1,18 +1,19 @@
 import gzip
-from collections.abc import Iterator
+import sys
 from enum import Enum
 from functools import partial
 from itertools import chain
+from multiprocessing import cpu_count
 from pathlib import Path
 from typing import Annotated, Optional
 
 import fastq as fq
 import typer
 from loguru import logger
-from more_itertools import chunked
-from multiprocess import Pool, cpu_count
+from more_itertools import chunked, ilen
 from revseq import revseq
 from rich.traceback import install
+from tqdm.contrib.concurrent import process_map
 
 from asap_o_matic import app, verbosity_level, version_callback
 from asap_o_matic.logger import init_logger
@@ -53,7 +54,6 @@ def verify_sample_from_R1(list_of_R1s: list[Path]) -> list[Path]:
     return verified_read1s
 
 
-
 def parse_directories(folder_list: list[Path], sample_list: list[str]) -> list[Path]:
     """Identify all sequencing data that should be parsed for conversion
 
@@ -75,31 +75,9 @@ def parse_directories(folder_list: list[Path], sample_list: list[str]) -> list[P
     for folder in folder_list:
         # Look at all of the possible sample names
         for sample in sample_list:
-            matching_read1s = [
-                f for f in folder.glob("*R1_001.fastq.gz") if sample in f.name
-            ]
+            matching_read1s = [f for f in folder.glob("*R1_001.fastq.gz") if sample in f.name]
             all_read1s = list(chain(all_read1s, matching_read1s))
     return verify_sample_from_R1(all_read1s)
-
-
-def batch_iterator(iterator: Iterator[fq.fastq_object], batch_size: int) -> Iterator[list[fq.fastq_object]]:
-    """Process items from an iterator in batches
-    """
-    entry = True  # Make sure we loop once
-    while entry:
-        batch: list[fq.fastq_object] = []
-        while len(batch) < batch_size:
-            try:
-                entry = next(iterator)
-                # logger.info(f"Adding {entry}")
-            except StopIteration:
-                entry = False
-            if not entry:
-                # End of file
-                break
-            batch.append(entry)
-        if batch:
-            yield batch
 
 
 def formatRead(title: str, sequence: str, quality: str) -> str:
@@ -107,8 +85,8 @@ def formatRead(title: str, sequence: str, quality: str) -> str:
     return f"@{title}\n{sequence}\n+\n{quality}\n"
 
 
-def asap_to_kite(trio: list[fq.fastq_object], rc_R2: bool, conjugation: str) -> list[list[str]]: #noqa FBT001
-    """Rearrange the disparate portions of CITE-seq reads that are split among the R1, R2, and R3 of ASAP-seq data 
+def asap_to_kite(trio: list[fq.fastq_object], rc_R2: bool, conjugation: str) -> list[list[str]]:  # nFBT001
+    """Rearrange the disparate portions of CITE-seq reads that are split among the R1, R2, and R3 of ASAP-seq data
     into something that Kallisto/Bustools or CITE-seq-Count can process
 
     Parameters
@@ -118,7 +96,7 @@ def asap_to_kite(trio: list[fq.fastq_object], rc_R2: bool, conjugation: str) -> 
     rc_R2 : bool
         _description_
     conjugation : str
-        The type of CITE-seq antibodies used, either TotalSeqA (if using the 10x Genomics scATAC-seq kit) or TotalSeqB 
+        The type of CITE-seq antibodies used, either TotalSeqA (if using the 10x Genomics scATAC-seq kit) or TotalSeqB
         (if using the 10x Genomics Multiome kit)
 
     Returns
@@ -137,7 +115,7 @@ def asap_to_kite(trio: list[fq.fastq_object], rc_R2: bool, conjugation: str) -> 
     sequence2 = read2.body
     quality2 = read2.qstr
 
-    title3 = read3.head
+    # title3 = read3.head
     sequence3 = read3.body
     quality3 = read3.qstr
 
@@ -211,13 +189,11 @@ def main(
             resolve_path=True,
             dir_okay=True,
             readable=True,
-        )
+        ),
     ] = None,
     n_cpu: Annotated[
         int,
-        typer.Option(
-            "--cores", "-c", help="Number of cores to use for parallel processing."
-        ),
+        typer.Option("--cores", "-c", help="Number of cores to use for parallel processing."),
     ] = DEFAULT_NUMBER_OF_THREADS,
     n_reads: Annotated[
         int,
@@ -227,7 +203,7 @@ def main(
             help="Maximum number of reads to process in one iteration. Decrease this if in a low memory environment.",
         ),
     ] = DEFAULT_MAX_READS_PER_ITERATION,
-    rc_R2: Annotated[ #noqa FBT002
+    rc_R2: Annotated[  # nFBT002
         bool,
         typer.Option(
             "--rc-R2/--no-rc-R2",
@@ -243,9 +219,7 @@ def main(
             help="String specifying antibody conjugation; either TotalSeqA or TotalSeqB",
         ),
     ] = Conjugation.TotalSeqA,
-    debug: Annotated[ #noqa FBT002
-        bool, typer.Option("--debug", help="Print extra information for debugging.")
-    ] = False,
+    debug: Annotated[bool, typer.Option("--debug", help="Print extra information for debugging.")] = False,  # nFBT002
     version: Annotated[  # noqa ARG001
         bool,
         typer.Option(
@@ -266,10 +240,17 @@ def main(
     if not isinstance(conjugation, str):
         conjugation = conjugation.value
 
+    logger.remove()
     if debug:
+        logger.add(
+            sys.stderr,
+            format="* <red>{elapsed}</red> - <cyan>{module}:{file}:{function}</cyan>:<green>{line}</green> - <yellow>{message}</yellow>",
+            colorize=True,
+        )
         init_logger(verbose=verbosity_level)
     else:
-        init_logger(verbose=1)
+        logger.add(sys.stderr, format="* <yellow>{message}</yellow>", colorize=True)
+        init_logger(verbose=1, msg_format="<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
 
     read1s_for_analysis = parse_directories(folder_of_fastqs, sample_name)
 
@@ -278,8 +259,8 @@ def main(
     for r in read1s_for_analysis:
         logger.info(r.stem)
 
-    outfq1file = f"{out}_R1.fastq.gz"
-    outfq2file = f"{out}_R2.fastq.gz"
+    outfq1file = outdir.joinpath(f"{out}_R1.fastq.gz")
+    outfq2file = outdir.joinpath(f"{out}_R2.fastq.gz")
     if outdir is None:
         outdir = Path().cwd()
     with gzip.open(outfq1file, "wt") as out_f1, gzip.open(outfq2file, "wt") as out_f2:
@@ -288,27 +269,33 @@ def main(
             read3_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R3"))
 
             # Read in fastq in chunks the size of the maximum user tolerated number
-            logger.warning(f"Creating batches for reads in {read1_file}")
+            logger.warning(f"Creating batches for reads in {read1_file}", format="<level>{message}</level>")
             it1 = chunked(fq.read(read1_file), n_reads)
             logger.warning(f"Creating batches for reads in {read2_file}")
             it2 = chunked(fq.read(read2_file), n_reads)
             logger.warning(f"Creating batches for reads in {read3_file}")
             it3 = chunked(fq.read(read3_file), n_reads)
 
-            for batch_read1 in it1:
+            for i, batch_read1 in enumerate(it1):
+                logger.info(f"Processing batch {i+1} of {ilen(it1)+1}")
                 batch_read2 = next(it2)
                 batch_read3 = next(it3)
 
-                pool = Pool(processes=n_cpu)
-                convert_partial = partial(
-                    asap_to_kite, rc_R2=rc_R2, conjugation=conjugation
+                convert_partial = partial(asap_to_kite, rc_R2=rc_R2, conjugation=conjugation)
+                # pm = parallel(delayed(asap_to_kite)([a, b, c], False, "TotalSeqB") for a, b, c in zip(batch_read1, batch_read2, batch_read3, strict=True))
+                pm = process_map(
+                    convert_partial,
+                    zip(batch_read1, batch_read2, batch_read3, strict=True),
+                    total=len(batch_read1),
+                    max_workers=n_cpu,
                 )
-                pm = pool.map(convert_partial, zip(batch_read1, batch_read2, batch_read3, strict=True))
-                pool.close()
+                # pool = Pool(processes=n_cpu)
+                # pm = pool.map(convert_partial, zip(batch_read1, batch_read2, batch_read3, strict=True))
+                # pool.close()
 
                 # process and write out
                 fq_data = list(map("".join, zip(*[item.pop(0) for item in pm], strict=True)))
-                out_f1.writelines(outdir.joinpath(fq_data[0]))
-                out_f2.writelines(outdir.joinpath(fq_data[1]))
+                out_f1.writelines(fq_data[0])
+                out_f2.writelines(fq_data[1])
 
     logger.info("Done!")

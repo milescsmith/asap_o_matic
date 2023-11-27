@@ -1,5 +1,17 @@
 # CHANGELOG
 
+# [1.2.0] - 2023-11-27
+
+## Changed
+
+- Made logging a litle less overwhelming and actually reflect passing the "debug" argument
+- Replaced `multiprocessing.Pool` with `tqdm.contrib.concurrent.process_map`
+- Reduced the DEFAULT_MAX_READS_PER_ITERATION from 100 to 1 million
+
+## Removed
+
+- Removed now unused `batch_iterator`
+
 # [1.1.0] - 2023-11-27
 
 ## Added

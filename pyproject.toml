@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asap-o-matic"
-version = "1.1.0"
+version = "1.2.0"
 description = ""
 requires-python = ">=3.10"
 dependencies = [
@@ -14,7 +14,8 @@ dependencies = [
     "rich ==13.6.0",
     "fastq ==2.0.2",
     "revseq @ git+https://github.com/milescsmith/revseq",
-    "more-itertools",
+    "more-itertools ==10.1.0",
+    "tqdm ==4.66.1"
 ]
 
 [project.urls]
@@ -80,6 +81,8 @@ ignore = [
     "D415",
     "E203",
     "E501",
+    "FBT001",
+    "FBT002",
     "FBT003",
     "N802",
     "N803",
