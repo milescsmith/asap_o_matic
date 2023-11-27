@@ -1,7 +1,6 @@
 import gzip
 import sys
 from enum import Enum
-from functools import partial
 from itertools import chain
 from multiprocessing import cpu_count
 from pathlib import Path
@@ -9,11 +8,11 @@ from typing import Annotated, Optional
 
 import fastq as fq
 import typer
+from joblib import Parallel, delayed
 from loguru import logger
-from more_itertools import chunked, ilen
 from revseq import revseq
 from rich.traceback import install
-from tqdm.contrib.concurrent import process_map
+from tqdm.auto import tqdm
 
 from asap_o_matic import app, verbosity_level, version_callback
 from asap_o_matic.logger import init_logger
@@ -27,7 +26,7 @@ class Conjugation(str, Enum):
 
 
 DEFAULT_NUMBER_OF_THREADS = cpu_count()
-DEFAULT_MAX_READS_PER_ITERATION = 10000000
+DEFAULT_MAX_READS_PER_ITERATION = 1000000
 
 
 def verify_sample_from_R1(list_of_R1s: list[Path]) -> list[Path]:
@@ -182,8 +181,8 @@ def main(
     outdir: Annotated[
         Optional[Path],  # noqa: UP007
         typer.Option(
-            "-outdir",
-            "--d",
+            "--outdir",
+            "-d",
             help="Directory to save files to.  If none is give, save in the directory from which the script was called.",
             file_okay=False,
             resolve_path=True,
@@ -259,43 +258,34 @@ def main(
     for r in read1s_for_analysis:
         logger.info(r.stem)
 
-    outfq1file = outdir.joinpath(f"{out}_R1.fastq.gz")
-    outfq2file = outdir.joinpath(f"{out}_R2.fastq.gz")
     if outdir is None:
         outdir = Path().cwd()
+    outfq1file = outdir.joinpath(f"{out}_R1.fastq.gz")
+    outfq2file = outdir.joinpath(f"{out}_R2.fastq.gz")
     with gzip.open(outfq1file, "wt") as out_f1, gzip.open(outfq2file, "wt") as out_f2:
         for read1_file in read1s_for_analysis:
             read2_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R2"))
             read3_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R3"))
 
             # Read in fastq in chunks the size of the maximum user tolerated number
-            logger.warning(f"Creating batches for reads in {read1_file}", format="<level>{message}</level>")
-            it1 = chunked(fq.read(read1_file), n_reads)
-            logger.warning(f"Creating batches for reads in {read2_file}")
-            it2 = chunked(fq.read(read2_file), n_reads)
-            logger.warning(f"Creating batches for reads in {read3_file}")
-            it3 = chunked(fq.read(read3_file), n_reads)
+            # logger.warning(f"Creating batches for reads in {read1_file}", format="<level>{message}</level>")
+            read1 = fq.read(read1_file)
+            # logger.info(f"read1_file has {ilen(it1)} reads")
+            read2 = fq.read(read2_file)
+            # logger.info(f"read2_file has {ilen(it2)} reads")
+            read3 = fq.read(read3_file)
+            # logger.info(f"read3_file has {ilen(it3)} reads")
 
-            for i, batch_read1 in enumerate(it1):
-                logger.info(f"Processing batch {i+1} of {ilen(it1)+1}")
-                batch_read2 = next(it2)
-                batch_read3 = next(it3)
+            if n_cpu > 1:
+                parallel = Parallel(n_jobs=n_cpu, return_as="list")
+                pm = parallel(delayed(asap_to_kite)((a, b, c), rc_R2=rc_R2, conjugation=conjugation) for a, b, c in tqdm(zip(read1, read2, read3, strict=True), unit="Reads"))
+            else:
+                pm = [asap_to_kite((a, b, c), rc_R2=rc_R2, conjugation=conjugation) for a, b, c in tqdm(zip(read1, read2, read3, strict=True), unit="Reads")]
 
-                convert_partial = partial(asap_to_kite, rc_R2=rc_R2, conjugation=conjugation)
-                # pm = parallel(delayed(asap_to_kite)([a, b, c], False, "TotalSeqB") for a, b, c in zip(batch_read1, batch_read2, batch_read3, strict=True))
-                pm = process_map(
-                    convert_partial,
-                    zip(batch_read1, batch_read2, batch_read3, strict=True),
-                    total=len(batch_read1),
-                    max_workers=n_cpu,
-                )
-                # pool = Pool(processes=n_cpu)
-                # pm = pool.map(convert_partial, zip(batch_read1, batch_read2, batch_read3, strict=True))
-                # pool.close()
 
-                # process and write out
-                fq_data = list(map("".join, zip(*[item.pop(0) for item in pm], strict=True)))
-                out_f1.writelines(fq_data[0])
-                out_f2.writelines(fq_data[1])
+            # process and write out
+            fq_data = list(map("".join, zip(*[item.pop(0) for item in pm], strict=True)))
+            out_f1.writelines(fq_data[0])
+            out_f2.writelines(fq_data[1])
 
     logger.info("Done!")
