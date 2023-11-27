@@ -4,11 +4,12 @@ from enum import Enum
 from functools import partial
 from itertools import chain
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Optional
 
 import fastq as fq
 import typer
 from loguru import logger
+from more_itertools import chunked
 from multiprocess import Pool, cpu_count
 from revseq import revseq
 from rich.traceback import install
@@ -28,8 +29,19 @@ DEFAULT_NUMBER_OF_THREADS = cpu_count()
 DEFAULT_MAX_READS_PER_ITERATION = 10000000
 
 
-# Function to verify R1/R2/R3 are present for nominated samples
 def verify_sample_from_R1(list_of_R1s: list[Path]) -> list[Path]:
+    """Verify R1/R2/R3 are present for nominated samples
+
+    Parameters
+    ----------
+    list_of_R1s : list[Path]
+        Location(s) of the FASTQs corresponding to read1
+
+    Returns
+    -------
+    list[Path]
+        Location(s) of read1 FASTQs that have matching read2 and read3
+    """
     verified_read1s = []
     for read1_file in list_of_R1s:
         read2_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R2"))
@@ -41,8 +53,22 @@ def verify_sample_from_R1(list_of_R1s: list[Path]) -> list[Path]:
     return verified_read1s
 
 
-# identify all sequencing data that should be parsed for conversion
+
 def parse_directories(folder_list: list[Path], sample_list: list[str]) -> list[Path]:
+    """Identify all sequencing data that should be parsed for conversion
+
+    Parameters
+    ----------
+    folder_list : list[Path]
+        _description_
+    sample_list : list[str]
+        _description_
+
+    Returns
+    -------
+    list[Path]
+        _description_
+    """
     all_read1s: list[Path] = []
 
     # Look into all supplied folders for specific files:
@@ -56,14 +82,15 @@ def parse_directories(folder_list: list[Path], sample_list: list[str]) -> list[P
     return verify_sample_from_R1(all_read1s)
 
 
-# Process through iterator
 def batch_iterator(iterator: Iterator[fq.fastq_object], batch_size: int) -> Iterator[list[fq.fastq_object]]:
+    """Process items from an iterator in batches
+    """
     entry = True  # Make sure we loop once
     while entry:
         batch: list[fq.fastq_object] = []
         while len(batch) < batch_size:
             try:
-                entry = iterator.__next__()
+                entry = next(iterator)
                 # logger.info(f"Adding {entry}")
             except StopIteration:
                 entry = False
@@ -75,12 +102,30 @@ def batch_iterator(iterator: Iterator[fq.fastq_object], batch_size: int) -> Iter
             yield batch
 
 
-# Reformat read for export
 def formatRead(title: str, sequence: str, quality: str) -> str:
+    # Reformat read for export
     return f"@{title}\n{sequence}\n+\n{quality}\n"
 
 
-def asap_to_kite_v1(trio: list[fq.fastq_object], rc_R2: bool, conjugation: str) -> list[list[str]]: #noqa FBT001
+def asap_to_kite(trio: list[fq.fastq_object], rc_R2: bool, conjugation: str) -> list[list[str]]: #noqa FBT001
+    """Rearrange the disparate portions of CITE-seq reads that are split among the R1, R2, and R3 of ASAP-seq data 
+    into something that Kallisto/Bustools or CITE-seq-Count can process
+
+    Parameters
+    ----------
+    trio : list[fq.fastq_object]
+        _description_
+    rc_R2 : bool
+        _description_
+    conjugation : str
+        The type of CITE-seq antibodies used, either TotalSeqA (if using the 10x Genomics scATAC-seq kit) or TotalSeqB 
+        (if using the 10x Genomics Multiome kit)
+
+    Returns
+    -------
+    list[list[str]]
+        A list of the reformatted read1 and read2 pairs
+    """
     read1, read2, read3 = trio
 
     # Parse aspects of existing read
@@ -156,6 +201,18 @@ def main(
             help="A unique run id, used to name output.",
         ),
     ],
+    outdir: Annotated[
+        Optional[Path],  # noqa: UP007
+        typer.Option(
+            "-outdir",
+            "--d",
+            help="Directory to save files to.  If none is give, save in the directory from which the script was called.",
+            file_okay=False,
+            resolve_path=True,
+            dir_okay=True,
+            readable=True,
+        )
+    ] = None,
     n_cpu: Annotated[
         int,
         typer.Option(
@@ -201,7 +258,9 @@ def main(
     """
     IT SLICES
     IT DICES
-    IT REFORMATES RAW SEQUENCING DATA FROM CELLRANGER-ATAC INTO SOMETHING USABLE BY OTHER TOOLS
+    IT REFORMATES RAW SEQUENCING DATA FROM CELLRANGER-ATAC INTO SOMETHING USABLE BY OTHER TOOLS\n
+    USE THE WHOLE READ WITHOUT ANY FISH WASTE
+    WITHOUT ANY SCALING, CUTTING, OR GUTTING
     """
 
     if not isinstance(conjugation, str):
@@ -221,34 +280,35 @@ def main(
 
     outfq1file = f"{out}_R1.fastq.gz"
     outfq2file = f"{out}_R2.fastq.gz"
-    with gzip.open(outfq1file, "wt") as out_f1:
-        with gzip.open(outfq2file, "wt") as out_f2:
-            for read1_file in read1s_for_analysis:
-                read2_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R2"))
-                read3_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R3"))
+    if outdir is None:
+        outdir = Path().cwd()
+    with gzip.open(outfq1file, "wt") as out_f1, gzip.open(outfq2file, "wt") as out_f2:
+        for read1_file in read1s_for_analysis:
+            read2_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R2"))
+            read3_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R3"))
 
-                # Read in fastq in chunks the size of the maximum user tolerated number
-                logger.warning(f"Creating batches for reads in {read1_file}")
-                it1 = batch_iterator(fq.read(read1_file), n_reads)
-                logger.warning(f"Creating batches for reads in {read2_file}")
-                it2 = batch_iterator(fq.read(read2_file), n_reads)
-                logger.warning(f"Creating batches for reads in {read3_file}")
-                it3 = batch_iterator(fq.read(read3_file), n_reads)
+            # Read in fastq in chunks the size of the maximum user tolerated number
+            logger.warning(f"Creating batches for reads in {read1_file}")
+            it1 = chunked(fq.read(read1_file), n_reads)
+            logger.warning(f"Creating batches for reads in {read2_file}")
+            it2 = chunked(fq.read(read2_file), n_reads)
+            logger.warning(f"Creating batches for reads in {read3_file}")
+            it3 = chunked(fq.read(read3_file), n_reads)
 
-                for batch_read1 in it1:
-                    batch_read2 = it2.__next__()
-                    batch_read3 = it3.__next__()
+            for batch_read1 in it1:
+                batch_read2 = next(it2)
+                batch_read3 = next(it3)
 
-                    pool = Pool(processes=n_cpu)
-                    convert_partial = partial(
-                        asap_to_kite_v1, rc_R2=rc_R2, conjugation=conjugation
-                    )
-                    pm = pool.map(convert_partial, zip(batch_read1, batch_read2, batch_read3, strict=True))
-                    pool.close()
+                pool = Pool(processes=n_cpu)
+                convert_partial = partial(
+                    asap_to_kite, rc_R2=rc_R2, conjugation=conjugation
+                )
+                pm = pool.map(convert_partial, zip(batch_read1, batch_read2, batch_read3, strict=True))
+                pool.close()
 
-                    # process and write out
-                    fq_data = list(map("".join, zip(*[item.pop(0) for item in pm], strict=True)))
-                    out_f1.writelines(fq_data[0])
-                    out_f2.writelines(fq_data[1])
+                # process and write out
+                fq_data = list(map("".join, zip(*[item.pop(0) for item in pm], strict=True)))
+                out_f1.writelines(outdir.joinpath(fq_data[0]))
+                out_f2.writelines(outdir.joinpath(fq_data[1]))
 
     logger.info("Done!")

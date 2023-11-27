@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asap-o-matic"
-version = "1.0.0"
+version = "1.1.0"
 description = ""
 requires-python = ">=3.10"
 dependencies = [
@@ -13,7 +13,8 @@ dependencies = [
     "multiprocess ==0.70.15",
     "rich ==13.6.0",
     "fastq ==2.0.2",
-    "revseq @ git+https://github.com/milescsmith/revseq"
+    "revseq @ git+https://github.com/milescsmith/revseq",
+    "more-itertools",
 ]
 
 [project.urls]
