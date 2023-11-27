@@ -33,5 +33,6 @@
 - Reworked previous script to act as an installble package
 - Added logging, (at least some) typing, etc...
 
+[1.2.0]: https://github.com/milescsmith/asap_o_matic/compare/1.1.0..1.2.0
 [1.1.0]: https://github.com/milescsmith/asap_o_matic/compare/1.0.0..1.1.0
 [1.0.0]: https://github.com/milescsmith/asap_o_matic/releases/tag/1.0.0
