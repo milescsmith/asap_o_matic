@@ -1,5 +1,12 @@
 # CHANGELOG
 
+# [1.3.0] - 2023-11-28
+
+## Changed
+
+- Turns out `process_map` is slower than just a simple list comprehension so switched to Joblib
+- Removed chunking because?
+
 # [1.2.0] - 2023-11-27
 
 ## Changed
@@ -32,6 +39,7 @@
 - Changed name
 - Reworked previous script to act as an installble package
 - Added logging, (at least some) typing, etc...
+
 
 [1.1.0]: https://github.com/milescsmith/asap_o_matic/compare/1.0.0..1.1.0
 [1.0.0]: https://github.com/milescsmith/asap_o_matic/releases/tag/1.0.0
