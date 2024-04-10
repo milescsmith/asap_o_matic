@@ -211,8 +211,8 @@ def main(
     fastq_source: Annotated[
         FastqSource,
         typer.Option(
-            "--bcl_source",
-            "-b",
+            "--fastq_source",
+            "-a",
             help="Name of the program used to convert bcls to FASTQs. Cellranger mkfastq creates R1, R2, R3, and I3 files while bcl-convert creates R1, I1, R2, I2 files.",
         )
     ] = FastqSource.cellranger,

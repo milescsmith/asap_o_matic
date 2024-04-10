@@ -1,5 +1,11 @@
 # CHANGELOG
 
+# [1.4.1] - 2024-04-10
+
+## Fix
+
+- Changed the `bcl_source` argument to `asap-o-matic` to `fastq_source`
+
 # [1.4.0] - 2024-04-10
 
 ## Added

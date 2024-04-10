@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asap-o-matic"
-version = "1.4.0"
+version = "1.4.1"
 description = ""
 requires-python = ">=3.10"
 dependencies = [
