@@ -1,5 +1,17 @@
 # CHANGELOG
 
+# [1.4.0] - 2024-04-10
+
+## Added
+
+- Add ability to handle FASTQs created by bcl2fastq/bcl-convert (really, the only difference in the naming but it was
+still annoying)
+
+## Changed
+
+- Write gzipped FASTQ files
+- Write output FASTQ files during the reformatting loop instead of all at once at the end
+
 # [1.3.0] - 2023-11-28
 
 ## Changed

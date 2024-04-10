@@ -4,18 +4,19 @@ build-backend = "hatchling.build"
 
 [project]
 name = "asap-o-matic"
-version = "1.3.0"
+version = "1.4.0"
 description = ""
 requires-python = ">=3.10"
 dependencies = [
-    "typer ==0.9.0",
-    "loguru ==0.7.2",
-    "multiprocess ==0.70.15",
-    "rich ==13.6.0",
-    "fastq ==2.0.2",
-    "revseq @ git+https://github.com/milescsmith/revseq",
-    "tqdm ==4.66.1",
-    "miniFasta ==3.0.3"
+    "typer >=0.9.0",
+    "loguru >=0.7",
+    "multiprocess >=0.70",
+    "rich >=13.6.0",
+    "fastq >=2.0.2",
+    "revseq >=1.0.0",
+    "tqdm >=4.66.1",
+    "miniFasta >=3.0.3",
+    "joblib >=1.4.0"
 ]
 
 [project.urls]
