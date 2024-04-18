@@ -1,5 +1,13 @@
 # CHANGELOG
 
+# [2.0.0] - 2024-04-18
+
+## Changed
+
+- Switch build-backend from hatch to maturin
+- Rearrange module structure to account for now being a joint Rust/Python package
+- Rewrote `formatRead` and part of `asap_to_kite` in Rust
+
 # [1.4.1] - 2024-04-10
 
 ## Fix
