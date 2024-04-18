@@ -15,6 +15,7 @@ from rich.traceback import install
 from tqdm.auto import tqdm
 
 from asap_o_matic import app, verbosity_level, version_callback
+from asap_o_matic.asap_o_matic import format_read, rearrange_reads
 from asap_o_matic.logger import init_logger
 
 # install()
@@ -99,9 +100,9 @@ def parse_directories(folder_list: list[Path], sample_list: list[str], fastq_sou
     return verify_sample_from_R1(all_read1s, fastq_source)
 
 
-def formatRead(title: str, sequence: str, quality: str) -> str:
-    # Reformat read for export
-    return f"@{title}\n{sequence}\n+\n{quality}\n"
+# def formatRead(title: str, sequence: str, quality: str) -> str:
+#     # Reformat read for export
+#     return f"@{title}\n{sequence}\n+\n{quality}\n"
 
 
 def asap_to_kite(
@@ -152,24 +153,26 @@ def asap_to_kite(
         quality2 = quality2[::-1]
 
     # Recombine attributes based on conjugation logic
-    if conjugation == "TotalSeqA":
-        new_sequence1 = sequence2 + sequence1[:10]
-        new_sequence2 = sequence3
+    
+    new_sequence1, new_sequence2, new_quality1, new_quality2 = rearrange_reads(sequence1, sequence2, sequence3, quality1, quality2, quality3, conjugation)
+    # if conjugation == "TotalSeqA":
+    #     new_sequence1 = sequence2 + sequence1[:10]
+    #     new_sequence2 = sequence3
 
-        new_quality1 = quality2 + quality1[:10]
-        new_quality2 = quality3
+    #     new_quality1 = quality2 + quality1[:10]
+    #     new_quality2 = quality3
 
-    elif conjugation == "TotalSeqB":
-        new_sequence1 = sequence2 + sequence3[:10] + sequence3[25:34]
-        new_sequence2 = sequence3[10:25]
+    # elif conjugation == "TotalSeqB":
+    #     new_sequence1 = sequence2 + sequence3[:10] + sequence3[25:34]
+    #     new_sequence2 = sequence3[10:25]
 
-        new_quality1 = quality2 + quality3[:10] + quality3[25:34]
-        new_quality2 = quality3[10:25]
+    #     new_quality1 = quality2 + quality3[:10] + quality3[25:34]
+    #     new_quality2 = quality3[10:25]
 
     # Prepare reads for exporting
     with gzip.open(new_read1_handle, "ab") as f1, gzip.open(new_read2_handle, "ab") as f2:
-        f1.write(formatRead(title1, new_sequence1, new_quality1).encode())
-        f2.write(formatRead(title2, new_sequence2, new_quality2).encode())
+        f1.write(format_read(title1, new_sequence1, new_quality1).encode())
+        f2.write(format_read(title2, new_sequence2, new_quality2).encode())
     # out_fq1 = formatRead(title1, new_sequence1, new_quality1)
     # out_fq2 = formatRead(title2, new_sequence2, new_quality2)
 
