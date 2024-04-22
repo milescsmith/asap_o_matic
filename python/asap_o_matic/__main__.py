@@ -288,7 +288,7 @@ def main(
     # Main loop -- process input reads and write out the processed fastq files
     logger.info("Processing these fastq samples: ")
     for r in read1s_for_analysis:
-        logger.info(r.stem)
+        logger.info(r.name)
 
     if outdir is None:
         outdir = Path().cwd()
@@ -296,9 +296,9 @@ def main(
     outfq2file = outdir.joinpath(f"{out}_R2.fastq.gz")
     tempfq1file = tempfile.NamedTemporaryFile()
     tempfq2file = tempfile.NamedTemporaryFile()
-    # with gzip.open(outfq1file, "wt") as out_f1, gzip.open(outfq2file, "wt") as out_f2:
-
+    
     for read1_file in read1s_for_analysis:
+        logger.info(f"Processing reads associated with {read1_file.name}")
         match fastq_source:
             case "bcl-convert":
                 read2_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "I2"))
@@ -307,14 +307,10 @@ def main(
                 read2_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R2"))
                 read3_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R3"))
 
-        # Read in fastq in chunks the size of the maximum user tolerated number
-        # logger.warning(f"Creating batches for reads in {read1_file}", format="<level>{message}</level>")
+        # No need to chunk when we use an iterator
         read1 = fq.read(read1_file)
-        # logger.info(f"read1_file has {ilen(it1)} reads")
         read2 = fq.read(read2_file)
-        # logger.info(f"read2_file has {ilen(it2)} reads")
         read3 = fq.read(read3_file)
-        # logger.info(f"read3_file has {ilen(it3)} reads")
 
         if n_cpu > 1:
             parallel = Parallel(n_jobs=n_cpu, return_as="list")
@@ -340,11 +336,9 @@ def main(
                 for a, b, c in tqdm(zip(read1, read2, read3, strict=True), unit="Reads")
             ]
 
-        # process and write out
-        # fq_data = list(map("".join, zip(*[item.pop(0) for item in pm], strict=True)))
-        # out_f1.writelines(fq_data[0])
-        # out_f2.writelines(fq_data[1])
+        logger.info("Finished rearranging reads. Now compressing...")
         pysam.tabix_compress(tempfq1file.file.name, outfq1file, force=True)
         pysam.tabix_compress(tempfq2file.file.name, outfq2file, force=True)
+        logger.info("Finished compressing.")
 
     logger.info("Done!")

@@ -13,12 +13,6 @@ fn format_read(
     Ok(format!("@{title}\n{sequence}\n+\n{quality}\n").to_string())
 }
 
-// #[pyfunction]
-// #[pyo3(name = "asap_to_kite")]
-// fn asap_to_kite(_py: Python) ->PyResult<String> {
-//     Ok(())
-// }
-
 #[pyfunction]
 #[pyo3(name = "rearrange_reads")]
 fn rearrange_reads(
@@ -31,13 +25,13 @@ fn rearrange_reads(
     quality3: &Bound<'_, PyString>,
     conjugation: &Bound<'_, PyString>,
 ) -> PyResult<Vec<String>> {
-    let sequence1 = sequence1.to_string();
-    let sequence2 = sequence2.to_string();
-    let sequence3 = sequence3.to_string();
+    let sequence1: String = sequence1.to_string();
+    let sequence2: String = sequence2.to_string();
+    let sequence3: String = sequence3.to_string();
 
-    let quality1 = quality1.to_string();
-    let quality2 = quality2.to_string();
-    let quality3 = quality3.to_string();
+    let quality1: String = quality1.to_string();
+    let quality2: String = quality2.to_string();
+    let quality3: String = quality3.to_string();
 
     let new_sequence1: String;
     let new_sequence2: String;

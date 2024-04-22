@@ -1,5 +1,11 @@
 # CHANGELOG
 
+# [2.1.1] - 2024-04-18
+
+## Added
+
+- Added messages to indicate rearrangement has completed and compressing the files had begun
+
 # [2.1.0] - 2024-04-18
 
 ## Fixed
