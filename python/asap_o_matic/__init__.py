@@ -5,6 +5,7 @@ A *lightly* altered version of the asap_to_kite_v2.py script
 written by Caleb Lareau and
 found at https://github.com/caleblareau/asap_to_kite
 """
+
 from importlib.metadata import PackageNotFoundError, version
 from typing import Annotated
 
@@ -49,7 +50,7 @@ def verbosity(
             help="Control output verbosity. Pass this argument multiple times to increase the amount of output.",
             count=True,
         ),
-    ] = 0
+    ] = 0,
 ) -> None:
     verbosity_level = verbose  # noqa: F841
 
