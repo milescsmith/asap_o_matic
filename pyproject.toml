@@ -8,7 +8,7 @@ build-backend = "maturin"
 
 [project]
 name = "asap-o-matic"
-version = "2.0.0"
+version = "2.1.0"
 description = ""
 requires-python = ">=3.10"
 dependencies = [
@@ -20,7 +20,8 @@ dependencies = [
     "revseq >=1.0.0",
     "tqdm >=4.66.1",
     "miniFasta >=3.0.3",
-    "joblib >=1.4.0"
+    "joblib >=1.4.0",
+    "pysam>=0.22.0",
 ]
 
 [project.urls]
@@ -44,6 +45,7 @@ bindings = "pyo3"
 python-source = "python"
 sdist-generator = "cargo"
 
+[tool.pdm]
 [project.scripts]
 asap-o-matic = "asap_o_matic.__main__:app"
 

@@ -1,5 +1,7 @@
 import gzip
 import sys
+import tempfile
+import pysam
 from enum import Enum
 from itertools import chain
 from multiprocessing import cpu_count
@@ -11,7 +13,8 @@ import typer
 from joblib import Parallel, delayed
 from loguru import logger
 from revseq import revseq
-from rich.traceback import install
+
+# from rich.traceback import install
 from tqdm.auto import tqdm
 
 from asap_o_matic import app, verbosity_level, version_callback
@@ -25,15 +28,19 @@ class Conjugation(str, Enum):
     TotalSeqA = "TotalSeqA"
     TotlaSeqB = "TotalSeqB"
 
+
 class FastqSource(str, Enum):
     cellranger = "cellranger"
     bclconvert = "bcl-convert"
+
 
 DEFAULT_NUMBER_OF_THREADS = cpu_count()
 DEFAULT_MAX_READS_PER_ITERATION = 1000000
 
 
-def verify_sample_from_R1(list_of_R1s: list[Path], fastq_source: Literal["cellranger", "bcl-convert"] = "bcl-convert") -> list[Path]:
+def verify_sample_from_R1(
+    list_of_R1s: list[Path], fastq_source: Literal["cellranger", "bcl-convert"] = "bcl-convert"
+) -> list[Path]:
     """Verify R1/R2/R3 are present for nominated samples
 
     Parameters
@@ -55,7 +62,9 @@ def verify_sample_from_R1(list_of_R1s: list[Path], fastq_source: Literal["cellra
                 index1_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "I1"))
                 index2_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "I2"))
                 if read2_file.exists() and index1_file.exists() and index2_file.exists():
-                    logger.debug(f"found read2 at {read2_file!s}, index1 at {index1_file!s}, and index2 at {index2_file!s}")
+                    logger.debug(
+                        f"found read2 at {read2_file!s}, index1 at {index1_file!s}, and index2 at {index2_file!s}"
+                    )
                     verified_read1s.append(read1_file)
                 else:
                     logger.warning(f"matching R2, I1, and/or I2 not found for {read1_file}")
@@ -73,7 +82,9 @@ def verify_sample_from_R1(list_of_R1s: list[Path], fastq_source: Literal["cellra
     return verified_read1s
 
 
-def parse_directories(folder_list: list[Path], sample_list: list[str], fastq_source: Literal["cellranger", "bcl-convert"] = "bcl-convert") -> list[Path]:
+def parse_directories(
+    folder_list: list[Path], sample_list: list[str], fastq_source: Literal["cellranger", "bcl-convert"] = "bcl-convert"
+) -> list[Path]:
     """Identify all sequencing data that should be parsed for conversion
 
     Parameters
@@ -111,7 +122,7 @@ def asap_to_kite(
     conjugation: str,
     new_read1_handle: gzip.GzipFile,
     new_read2_handle: gzip.GzipFile,
-    ) -> None: #list[list[str]]:  # nFBT001
+) -> None:  # list[list[str]]:  # nFBT001
     """Rearrange the disparate portions of CITE-seq reads that are split among the R1, R2, and R3 of ASAP-seq data
     into something that Kallisto/Bustools or CITE-seq-Count can process
 
@@ -153,24 +164,12 @@ def asap_to_kite(
         quality2 = quality2[::-1]
 
     # Recombine attributes based on conjugation logic
-    
-    new_sequence1, new_sequence2, new_quality1, new_quality2 = rearrange_reads(sequence1, sequence2, sequence3, quality1, quality2, quality3, conjugation)
-    # if conjugation == "TotalSeqA":
-    #     new_sequence1 = sequence2 + sequence1[:10]
-    #     new_sequence2 = sequence3
 
-    #     new_quality1 = quality2 + quality1[:10]
-    #     new_quality2 = quality3
+    new_sequence1, new_sequence2, new_quality1, new_quality2 = rearrange_reads(
+        sequence1, sequence2, sequence3, quality1, quality2, quality3, conjugation
+    )
 
-    # elif conjugation == "TotalSeqB":
-    #     new_sequence1 = sequence2 + sequence3[:10] + sequence3[25:34]
-    #     new_sequence2 = sequence3[10:25]
-
-    #     new_quality1 = quality2 + quality3[:10] + quality3[25:34]
-    #     new_quality2 = quality3[10:25]
-
-    # Prepare reads for exporting
-    with gzip.open(new_read1_handle, "ab") as f1, gzip.open(new_read2_handle, "ab") as f2:
+    with open(new_read1_handle, "ab") as f1, open(new_read2_handle, "ab") as f2:
         f1.write(format_read(title1, new_sequence1, new_quality1).encode())
         f2.write(format_read(title2, new_sequence2, new_quality2).encode())
     # out_fq1 = formatRead(title1, new_sequence1, new_quality1)
@@ -217,10 +216,10 @@ def main(
             "--fastq_source",
             "-a",
             help="Name of the program used to convert bcls to FASTQs. Cellranger mkfastq creates R1, R2, R3, and I3 files while bcl-convert creates R1, I1, R2, I2 files.",
-        )
+        ),
     ] = FastqSource.cellranger,
     outdir: Annotated[
-        Optional[Path],  # noqa: UP007
+        Optional[Path],
         typer.Option(
             "--outdir",
             "-d",
@@ -235,14 +234,6 @@ def main(
         int,
         typer.Option("--cores", "-c", help="Number of cores to use for parallel processing."),
     ] = DEFAULT_NUMBER_OF_THREADS,
-    # n_reads: Annotated[
-    #     int,
-    #     typer.Option(
-    #         "-n",
-    #         "--nreads",
-    #         help="Maximum number of reads to process in one iteration. Decrease this if in a low memory environment.",
-    #     ),
-    # ] = DEFAULT_MAX_READS_PER_ITERATION,
     rc_R2: Annotated[  # nFBT002
         bool,
         typer.Option(
@@ -260,7 +251,7 @@ def main(
         ),
     ] = Conjugation.TotalSeqA,
     debug: Annotated[bool, typer.Option("--debug", help="Print extra information for debugging.")] = False,  # nFBT002
-    version: Annotated[  # noqa ARG001
+    version: Annotated[  # ARG001
         bool,
         typer.Option(
             "--version",
@@ -303,6 +294,8 @@ def main(
         outdir = Path().cwd()
     outfq1file = outdir.joinpath(f"{out}_R1.fastq.gz")
     outfq2file = outdir.joinpath(f"{out}_R2.fastq.gz")
+    tempfq1file = tempfile.NamedTemporaryFile()
+    tempfq2file = tempfile.NamedTemporaryFile()
     # with gzip.open(outfq1file, "wt") as out_f1, gzip.open(outfq2file, "wt") as out_f2:
 
     for read1_file in read1s_for_analysis:
@@ -325,14 +318,33 @@ def main(
 
         if n_cpu > 1:
             parallel = Parallel(n_jobs=n_cpu, return_as="list")
-            pm = parallel(delayed(asap_to_kite)((a, b, c), rc_R2=rc_R2, conjugation=conjugation, new_read1_handle=outfq1file, new_read2_handle=outfq2file) for a, b, c in tqdm(zip(read1, read2, read3, strict=True), unit="Reads"))
+            _ = parallel(
+                delayed(asap_to_kite)(
+                    (a, b, c),
+                    rc_R2=rc_R2,
+                    conjugation=conjugation,
+                    new_read1_handle=tempfq1file.name,
+                    new_read2_handle=tempfq2file.name,
+                )
+                for a, b, c in tqdm(zip(read1, read2, read3, strict=True), unit="Reads")
+            )
         else:
-            pm = [asap_to_kite((a, b, c), rc_R2=rc_R2, conjugation=conjugation, new_read1_handle=outfq1file, new_read2_handle=outfq2file) for a, b, c in tqdm(zip(read1, read2, read3, strict=True), unit="Reads")]
-
+            _ = [
+                asap_to_kite(
+                    (a, b, c),
+                    rc_R2=rc_R2,
+                    conjugation=conjugation,
+                    new_read1_handle=tempfq1file.name,
+                    new_read2_handle=tempfq2file.name,
+                )
+                for a, b, c in tqdm(zip(read1, read2, read3, strict=True), unit="Reads")
+            ]
 
         # process and write out
         # fq_data = list(map("".join, zip(*[item.pop(0) for item in pm], strict=True)))
         # out_f1.writelines(fq_data[0])
         # out_f2.writelines(fq_data[1])
+        pysam.tabix_compress(tempfq1file.file.name, outfq1file, force=True)
+        pysam.tabix_compress(tempfq2file.file.name, outfq2file, force=True)
 
     logger.info("Done!")

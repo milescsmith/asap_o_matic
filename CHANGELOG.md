@@ -1,5 +1,16 @@
 # CHANGELOG
 
+# [2.1.0] - 2024-04-18
+
+## Fixed
+
+- I guess using write/append to a gzipped file doesn't work? Replaced the way output FASTQs were being written
+so that they first go to a temporary file and are then bgzipped
+
+## Changed
+
+- Using PDM for the Python package management side of things
+
 # [2.0.0] - 2024-04-18
 
 ## Changed
