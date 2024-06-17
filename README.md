@@ -1,5 +1,5 @@
 # ASAP to kite
-A script to process fastqs from ASAP-seq for downstream processing with kite (kallisto | bustools). 
+A script to process fastqs from ASAP-seq for downstream processing with kite ~~(kallisto | bustools)~~ salmon alevin. 
 
 The options are designed to mirror that of CellRanger/CellRanger-ATAC for convenience in processing.
 
