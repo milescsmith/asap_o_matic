@@ -1,7 +1,6 @@
 import gzip
 import sys
 import tempfile
-import pysam
 from enum import Enum
 from itertools import chain
 from multiprocessing import cpu_count
@@ -9,6 +8,7 @@ from pathlib import Path
 from typing import Annotated, Literal, Optional
 
 import fastq as fq
+import pysam
 import typer
 from joblib import Parallel, delayed
 from loguru import logger
@@ -296,7 +296,7 @@ def main(
     outfq2file = outdir.joinpath(f"{out}_R2.fastq.gz")
     tempfq1file = tempfile.NamedTemporaryFile()
     tempfq2file = tempfile.NamedTemporaryFile()
-    
+
     for read1_file in read1s_for_analysis:
         logger.info(f"Processing reads associated with {read1_file.name}")
         match fastq_source:

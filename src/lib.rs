@@ -52,7 +52,7 @@ fn rearrange_reads(
                 sequence2 + &sequence3[..10].to_string() + &sequence3[25..34].to_string();
             new_sequence2 = sequence3[10..25].to_string();
 
-            new_quality1 = quality2 + &quality3[..10].to_string() + &quality3[25..34].to_string();
+            new_quality1 = quality2 + &quality3[..10] + &quality3[25..34];
             new_quality2 = quality3[10..25].to_string();
         }
         &_ => todo!(),
