@@ -38,4 +38,11 @@ def init_logger(verbose: int = 0, msg_format: str | None = None, save: bool = Tr
         else stdout
     )
 
-    return logger.add(sink=output_sink, format=msg_format, level=log_level, backtrace=backtrace, diagnose=diagnose)
+    return logger.add(
+        sink=output_sink,
+        format=msg_format,
+        level=log_level,
+        backtrace=backtrace,
+        diagnose=diagnose,
+        filter="asap-o-matic",
+    )

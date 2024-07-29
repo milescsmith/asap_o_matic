@@ -78,6 +78,9 @@ exclude = [
     "__pypackages__",
 ]
 
+[lint.per-file-ignores]
+"tests/**.py" = ["S101"]
+
 [format]
 # Like Black, use double quotes for strings.
 quote-style = "double"

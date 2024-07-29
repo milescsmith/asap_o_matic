@@ -1,5 +1,16 @@
 # CHANGELOG
 
+# [2.2.0] - 2024-07-29
+
+## Added
+
+- Unit tests
+
+## Changed
+
+- Rust code cleaned a little
+
+
 # [2.1.1] - 2024-04-18
 
 ## Added

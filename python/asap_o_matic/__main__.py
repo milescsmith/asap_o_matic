@@ -2,6 +2,7 @@ import gzip
 import sys
 import tempfile
 from enum import Enum
+from importlib.metadata import PackageNotFoundError, version
 from itertools import chain
 from multiprocessing import cpu_count
 from pathlib import Path
@@ -13,15 +14,18 @@ import typer
 from joblib import Parallel, delayed
 from loguru import logger
 from revseq import revseq
+from rich import print as rp
 
 # from rich.traceback import install
 from tqdm.auto import tqdm
 
-from asap_o_matic import app, verbosity_level, version_callback
 from asap_o_matic.asap_o_matic import format_read, rearrange_reads
 from asap_o_matic.logger import init_logger
 
-# install()
+try:
+    __version__ = version(__name__)
+except PackageNotFoundError:  # pragma: no cover
+    __version__ = "unknown"
 
 
 class Conjugation(str, Enum):
@@ -37,7 +41,40 @@ class FastqSource(str, Enum):
 DEFAULT_NUMBER_OF_THREADS = cpu_count()
 DEFAULT_MAX_READS_PER_ITERATION = 1000000
 
+app = typer.Typer(
+    name="asap_o_matic",
+    help="Reformat antibody-derived reads from ASAP-seq to a format expected by CITE-seq-Count or Bustools",
+    add_completion=False,
+    no_args_is_help=True,
+    rich_markup_mode="markdown",
+)
 
+verbosity_level = 0
+
+
+def version_callback(value: bool) -> None:  # FBT001
+    """Prints the version of the package."""
+    if value:
+        rp(f"[yellow]asap-to-kite[/] version: [bold blue]{__version__}[/]")
+        raise typer.Exit()
+
+
+@app.callback()
+def verbosity(
+    verbose: Annotated[
+        int,
+        typer.Option(
+            "-v",
+            "--verbose",
+            help="Control output verbosity. Pass this argument multiple times to increase the amount of output.",
+            count=True,
+        ),
+    ] = 0,
+) -> None:
+    verbosity_level = verbose  # noqa: F841
+
+
+# TODO: ideally, this would also check that the first line for each read triplet matches
 def verify_sample_from_R1(
     list_of_R1s: list[Path], fastq_source: Literal["cellranger", "bcl-convert"] = "bcl-convert"
 ) -> list[Path]:
@@ -124,7 +161,7 @@ def asap_to_kite(
     new_read2_handle: gzip.GzipFile,
 ) -> None:  # list[list[str]]:  # nFBT001
     """Rearrange the disparate portions of CITE-seq reads that are split among the R1, R2, and R3 of ASAP-seq data
-    into something that Kallisto/Bustools or CITE-seq-Count can process
+    into something that salmon alevin or CITE-seq-Count can process
 
     Parameters
     ----------
@@ -172,10 +209,6 @@ def asap_to_kite(
     with open(new_read1_handle, "ab") as f1, open(new_read2_handle, "ab") as f2:
         f1.write(format_read(title1, new_sequence1, new_quality1).encode())
         f2.write(format_read(title2, new_sequence2, new_quality2).encode())
-    # out_fq1 = formatRead(title1, new_sequence1, new_quality1)
-    # out_fq2 = formatRead(title2, new_sequence2, new_quality2)
-
-    # return [[out_fq1, out_fq2]]
 
 
 @app.callback(invoke_without_command=True)
@@ -253,11 +286,7 @@ def main(
     debug: Annotated[bool, typer.Option("--debug", help="Print extra information for debugging.")] = False,  # nFBT002
     version: Annotated[  # ARG001
         bool,
-        typer.Option(
-            "--version",
-            callback=version_callback,
-            help="Print version number.",
-        ),
+        typer.Option("--version", callback=version_callback, help="Print version number.", is_eager=True),
     ] = False,
 ) -> None:
     """

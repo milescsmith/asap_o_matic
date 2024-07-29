@@ -41,15 +41,15 @@ fn rearrange_reads(
 
     match conjugation {
         "TotalSeqA" => {
-            new_sequence1 = sequence2 + &sequence1[..10].to_string();
+            new_sequence1 = sequence2 + &sequence1[..10];
             new_sequence2 = sequence3;
 
-            new_quality1 = quality2 + &quality1[..10].to_string();
+            new_quality1 = quality2 + &quality1[..10];
             new_quality2 = quality3;
         }
         "TotalSeqB" => {
             new_sequence1 =
-                sequence2 + &sequence3[..10].to_string() + &sequence3[25..34].to_string();
+                sequence2 + &sequence3[..10] + &sequence3[25..34];
             new_sequence2 = sequence3[10..25].to_string();
 
             new_quality1 = quality2 + &quality3[..10] + &quality3[25..34];
