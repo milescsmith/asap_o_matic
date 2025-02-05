@@ -1,0 +1,15 @@
+Bootstrap: docker
+From: index.docker.io/python:3.12-slim
+
+%files
+    ../dist/asap_o_matic-2.3.0-cp310-abi3-linux_x86_64.whl /opt/asap_o_matic-2.3.0-cp310-abi3-linux_x86_64.whl
+
+%post
+    pip install /opt/asap_o_matic-2.3.0-cp310-abi3-linux_x86_64.whl
+
+%runscript
+    asap-o-matic $*
+
+%labels
+    Author miles-smith@omrf.org
+    Version 2.3.0

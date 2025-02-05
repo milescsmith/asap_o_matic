@@ -1,5 +1,31 @@
 # CHANGELOG
 
+# [2.4.0] - 2025-02-05
+
+## Added
+
+- Added parameter to asap_o_matic to save the log file
+
+## Fixed
+
+- And we're back to actually writing the output to disk.
+- Logging actually works now
+
+## Changed
+
+- Update dependencies
+- Added a note about where output is being written to
+
+# [2.3.0] - 2025-02-03
+
+## Changed
+
+- Removed tqdm.  Already importing Rich, might as well use `rich.progress`
+
+## Fixed
+
+- If output directory does not exist, attempt to create it.
+
 # [2.2.0] - 2024-07-29
 
 ## Added

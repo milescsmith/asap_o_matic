@@ -5,14 +5,12 @@ from typing import TextIO
 
 from loguru import logger
 
-parent_module = modules[".".join(__name__.split(".")[:-1]) or "__main__"]
+# parent_module = modules[".".join(__name__.split(".")[:-1]) or "__main__"]
 
 
-def init_logger(verbose: int = 0, msg_format: str | None = None, save: bool = True) -> int:
-    if msg_format is None:
-        msg_format = "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+def init_logger(verbose: int = 0, msg_format: str | None = None, save: bool = False) -> None:
 
-    timezone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+    timezone = datetime.datetime.now(datetime.UTC).astimezone().tzinfo
 
     match verbose:
         case 3:
@@ -32,17 +30,19 @@ def init_logger(verbose: int = 0, msg_format: str | None = None, save: bool = Tr
             backtrace = False
             diagnose = False
 
-    output_sink: Path | TextIO = (
-        Path(f"asap_o_matic_{datetime.datetime.now(tz=timezone).strftime('%d-%m-%Y--%H-%M-%S')}.log")
-        if save
-        else stdout
-    )
+    if msg_format is None:
+        if save is True:
+            msg_format = "{name}:{function}:{line} - {message}"
+        else:
+            msg_format = "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
 
-    return logger.add(
+    output_sink: Path | TextIO = Path(f"{__package__}_{datetime.datetime.now(tz=timezone).strftime('%d-%m-%Y--%H-%M-%S')}.log") if save else stdout
+
+    logger.add(
         sink=output_sink,
         format=msg_format,
         level=log_level,
         backtrace=backtrace,
         diagnose=diagnose,
-        filter="asap-o-matic",
+        filter=__package__,
     )

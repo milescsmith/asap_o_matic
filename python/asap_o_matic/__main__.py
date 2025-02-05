@@ -1,12 +1,11 @@
-import gzip
 import sys
 import tempfile
-from enum import Enum
+from enum import StrEnum
 from importlib.metadata import PackageNotFoundError, version
 from itertools import chain
 from multiprocessing import cpu_count
 from pathlib import Path
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Optional
 
 import fastq as fq
 import pysam
@@ -15,25 +14,24 @@ from joblib import Parallel, delayed
 from loguru import logger
 from revseq import revseq
 from rich import print as rp
+from rich.progress import track
 
 # from rich.traceback import install
-from tqdm.auto import tqdm
-
 from asap_o_matic.asap_o_matic import format_read, rearrange_reads
 from asap_o_matic.logger import init_logger
 
 try:
-    __version__ = version(__name__)
+    __version__ = version(__package__)
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
 
 
-class Conjugation(str, Enum):
+class Conjugation(StrEnum):
     TotalSeqA = "TotalSeqA"
     TotlaSeqB = "TotalSeqB"
 
 
-class FastqSource(str, Enum):
+class FastqSource(StrEnum):
     cellranger = "cellranger"
     bclconvert = "bcl-convert"
 
@@ -76,7 +74,7 @@ def verbosity(
 
 # TODO: ideally, this would also check that the first line for each read triplet matches
 def verify_sample_from_R1(
-    list_of_R1s: list[Path], fastq_source: Literal["cellranger", "bcl-convert"] = "bcl-convert"
+    list_of_R1s: list[Path], fastq_source: FastqSource = FastqSource.bclconvert
 ) -> list[Path]:
     """Verify R1/R2/R3 are present for nominated samples
 
@@ -120,7 +118,7 @@ def verify_sample_from_R1(
 
 
 def parse_directories(
-    folder_list: list[Path], sample_list: list[str], fastq_source: Literal["cellranger", "bcl-convert"] = "bcl-convert"
+    folder_list: list[Path], sample_list: list[str], fastq_source: FastqSource = FastqSource.bclconvert
 ) -> list[Path]:
     """Identify all sequencing data that should be parsed for conversion
 
@@ -152,13 +150,15 @@ def parse_directories(
 #     # Reformat read for export
 #     return f"@{title}\n{sequence}\n+\n{quality}\n"
 
-
+@logger.catch
 def asap_to_kite(
-    fastq_list: list[fq.fastq_object],
+    read1: fq.fastq_object,
+    read2: fq.fastq_object,
+    read3: fq.fastq_object,
     rc_R2: bool,
     conjugation: str,
-    new_read1_handle: gzip.GzipFile,
-    new_read2_handle: gzip.GzipFile,
+    new_read1_handle: str,
+    new_read2_handle: str,
 ) -> None:  # list[list[str]]:  # nFBT001
     """Rearrange the disparate portions of CITE-seq reads that are split among the R1, R2, and R3 of ASAP-seq data
     into something that salmon alevin or CITE-seq-Count can process
@@ -178,7 +178,6 @@ def asap_to_kite(
     list[list[str]]
         A list of the reformatted read1 and read2 pairs
     """
-    read1, read2, read3 = fastq_list
 
     # Parse aspects of existing read
     title1 = read1.head
@@ -261,6 +260,7 @@ def main(
             resolve_path=True,
             dir_okay=True,
             readable=True,
+            writable=True
         ),
     ] = None,
     n_cpu: Annotated[
@@ -284,6 +284,7 @@ def main(
         ),
     ] = Conjugation.TotalSeqA,
     debug: Annotated[bool, typer.Option("--debug", help="Print extra information for debugging.")] = False,  # nFBT002
+    save_log: Annotated[bool, typer.Option("--save_log", help="Save the log to a file")] = False,
     version: Annotated[  # ARG001
         bool,
         typer.Option("--version", callback=version_callback, help="Print version number.", is_eager=True),
@@ -297,30 +298,33 @@ def main(
     WITHOUT ANY SCALING, CUTTING, OR GUTTING
     """
 
-    if not isinstance(conjugation, str):
-        conjugation = conjugation.value
-
     logger.remove()
     if debug:
-        logger.add(
-            sys.stderr,
-            format="* <red>{elapsed}</red> - <cyan>{module}:{file}:{function}</cyan>:<green>{line}</green> - <yellow>{message}</yellow>",
-            colorize=True,
-        )
-        init_logger(verbose=verbosity_level)
+        if save_log:
+            init_logger(verbose=3, save=True)
+        else:
+            init_logger(verbose=3, save=False)
     else:
-        logger.add(sys.stderr, format="* <yellow>{message}</yellow>", colorize=True)
-        init_logger(verbose=1, msg_format="<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+        init_logger(verbose=2, msg_format="* <level>{message}</level>")
+        if save_log:
+            logger.warning("You passed `save_log`, but that only works with `debug`")
 
     read1s_for_analysis = parse_directories(folder_of_fastqs, sample_name, fastq_source)
 
     # Main loop -- process input reads and write out the processed fastq files
-    logger.info("Processing these fastq samples: ")
+    logger.debug("Processing these fastq samples: ")
     for r in read1s_for_analysis:
-        logger.info(r.name)
+        logger.debug(r.name)
 
     if outdir is None:
         outdir = Path().cwd()
+    if not outdir.exists():
+        try:
+            outdir.mkdir()
+        except PermissionError as e:
+            msg = "The directory you have selected to write the output to does not exist and you do not have permissions to create it"
+            raise PermissionError(msg) from e
+
     outfq1file = outdir.joinpath(f"{out}_R1.fastq.gz")
     outfq2file = outdir.joinpath(f"{out}_R2.fastq.gz")
     tempfq1file = tempfile.NamedTemporaryFile()
@@ -345,29 +349,40 @@ def main(
             parallel = Parallel(n_jobs=n_cpu, return_as="list")
             _ = parallel(
                 delayed(asap_to_kite)(
-                    (a, b, c),
+                    read1=a,
+                    read2=b,
+                    read3=c,
                     rc_R2=rc_R2,
                     conjugation=conjugation,
                     new_read1_handle=tempfq1file.name,
                     new_read2_handle=tempfq2file.name,
                 )
-                for a, b, c in tqdm(zip(read1, read2, read3, strict=True), unit="Reads")
+                for a, b, c in track(zip(read1, read2, read3, strict=True), transient=False)
             )
         else:
-            _ = [
+            for a, b, c in track(zip(read1, read2, read3, strict=True), transient=False):
                 asap_to_kite(
-                    (a, b, c),
+                    read1=a,
+                    read2=b,
+                    read3=c,
                     rc_R2=rc_R2,
                     conjugation=conjugation,
                     new_read1_handle=tempfq1file.name,
                     new_read2_handle=tempfq2file.name,
                 )
-                for a, b, c in tqdm(zip(read1, read2, read3, strict=True), unit="Reads")
-            ]
 
         logger.info("Finished rearranging reads. Now compressing...")
-        pysam.tabix_compress(tempfq1file.file.name, outfq1file, force=True)
-        pysam.tabix_compress(tempfq2file.file.name, outfq2file, force=True)
+        pysam.tabix_compress(tempfq1file.file.name, str(outfq1file), force=True)
+        pysam.tabix_compress(tempfq2file.file.name, str(outfq2file), force=True)
+
+        for i, output in enumerate((outfq1file, outfq2file)):
+            if output.exists():
+                logger.info(f"Wrote new read {i+1} to {output.resolve()}")
+            else:
+                msg = f"Attempted to write read {i+1} to {output.resolve()}, but the output does not appear to exist."
+                logger.exception(msg)
+                raise FileNotFoundError(msg)
+
         logger.info("Finished compressing.")
 
     logger.info("Done!")

@@ -35,16 +35,16 @@ def expected_read2():
 def test_asap_to_kite(read1_file, read2_file, read3_file, expected_read1, expected_read2, tmp_path):
     new_read1 = tmp_path.joinpath("new_read1.fastq")
     new_read2 = tmp_path.joinpath("new_read2.fastq")
-    _ = [
+    for a, b, c in zip(fq.read(read1_file), fq.read(read2_file), fq.read(read3_file), strict=True):
         asap_to_kite(
-            (a, b, c),
+            read1=a,
+            read2=b,
+            read3=c,
             rc_R2=False,
             conjugation="TotalSeqB",
             new_read1_handle=new_read1,
             new_read2_handle=new_read2,
         )
-        for a, b, c in zip(fq.read(read1_file), fq.read(read2_file), fq.read(read3_file), strict=True)
-    ]
     assert compare_files(new_read1, expected_read1)
     assert compare_files(new_read2, expected_read2)
 
