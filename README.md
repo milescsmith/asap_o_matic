@@ -1,115 +1,85 @@
-# ASAP to kite
-A script to process fastqs from ASAP-seq for downstream processing with kite ~~(kallisto | bustools)~~ salmon alevin. 
+# asap-o-matic
 
-The options are designed to mirror that of CellRanger/CellRanger-ATAC for convenience in processing.
+asap-o-matic provides the ability to process [ASAP-seq](https://www.nature.com/articles/s41587-021-00927-2) FASTQs for
+downstream processing and counting of the antibody-dependent reads using [Salmon Alevin](https://salmon.readthedocs.io/en/latest/alevin.html).
+
+A heavily modified version of [asap_to_kite](https://github.com/caleblareau/asap_to_kite).
 
 ## About
 
-There are two scripts in this repository. First, `asap_to_kite_vX.py` (where `X` is an integer) represents the tool most commonly used for the simple reformatting. This will work most of the time. 
+ASAP-seq uses a few tricks to bridge the oligo sequences attached to CITE-seq/Total-seq antibodies with the oligo tails
+on the beads of 10x Genomics scATAC-seq kits; however, the reads produced don't match anything that Cellranger understands
+how to count. asap-o-matic reformats those reads so that they appear like those coming from the feature library of a
+10x Genomics scRNA-seq library.
 
-In rare cases, you may have stained with both TSA and TSB antibodies. In this case, we have the `asap_to_kite_A_B.py` to separate out the two using the different PCR handles. For this to work, we do require the pre-identification of the valid barcodes for both TSA and TSB; hence, additional parameters in the `-a` and `-b` flags. 
+## Installation
 
+The easiest way is to run via [uv](https://github.com/astral-sh/uv):
 
-## Sample use cases
-
-### One sample, one directory
-
-The most basic use case is when we have one library sequenced one. From the demultiplexing,
-we should see files that look like this:
-
-```
-test/data1/test1_S1_L001_R1_001.fastq.gz
-test/data1/test1_S1_L001_R2_001.fastq.gz
-test/data1/test1_S1_L001_R3_001.fastq.gz
-test/data1/test1_S1_L002_R1_001.fastq.gz
-test/data1/test1_S1_L002_R2_001.fastq.gz
-test/data1/test1_S1_L002_R3_001.fastq.gz
-test/data1/test1_S1_L003_R1_001.fastq.gz
-test/data1/test1_S1_L003_R2_001.fastq.gz
-test/data1/test1_S1_L003_R3_001.fastq.gz
-test/data1/test1_S1_L004_R1_001.fastq.gz
-test/data1/test1_S1_L004_R2_001.fastq.gz
-test/data1/test1_S1_L004_R3_001.fastq.gz
+```console
+uv tool install asap_o_matic
 ```
 
-Here, the sequencing run is in the folder `test/data1` and we are interested in the `test1` sample. 
+Alteratively, it can be installed using `pip` 
 
-We can process these fastqs:
-
-```
-python asap_to_kite_v1.py -f test/data1 -s test1 -o one_one
+```console
+pip install asap_o_matic
 ```
 
-Here, the `-s` specifies the `sample name`; `-f` specifies the `fastq folder`; `-o` specifies the `output` naming convention.
-
-### One sample, multiple directories 
-
-If multiple sequencing rounds are performed, we can supply all sequencing libraries as a comma-separated list:
-
-```
-python asap_to_kite_v1.py -f test/data1,test/data2 -s test1 -o one_many
+or `uv`:
+```console
+uv pip install asap_o_matic
 ```
 
-### One sample, named multiple ways, in multiple directories
+## Requirements
 
-Suppose that the sequencing library is named two different ways over the two sequencing runs. 
-We can stack the comma-separated nature of the sample names and the sequencing runs to 
-synthesize the libraries
+* Python >= 3.11
+  - currently, asap-o-matic is tested against 3.11-3.14
+* [Rust](https://rust-lang.org/)
+* R1/R2/I1/I2 files output by `bcl-convert/bcl2fastq` or the R1/R2/R3/I3 produced by `cellranger 
+mkfastq`
 
-```
-python asap_to_kite_v1.py -f test/data1,test/data2 -s test1,test2 -o many_many
-```
+## Usage:
 
-### Write to a different output destination
-
-Finally, just to showcase that we can write these files out to a different path:
-
-```
-python asap_to_kite_v1.py -f test/data1,test/data2 -s test1,test2 -o test/many_many
+```console
+asap-o-matic [OPTIONS] COMMAND [ARGS]...
 ```
 
-## Important
+### Options :
+* `-f, --fastqs DIRECTORY`: Path of folder created by mkfastq or bcl2fastq; can be comma separated that will be collapsed into one output  [required]
+* `-s, --sample TEXT`: Prefix of the filenames of FASTQs to select; can be comma separated that will be collapsed into one output  [required]
+* `-o, --id TEXT`: A unique run id, used to name output.  [required]
+* `-a, --fastq_source [cellranger|bcl-convert]`: Name of the program used to convert bcls to FASTQs. Cellranger mkfastq creates R1, R2, R3, and I3 files while bcl-convert creates R1, I1, R2, I2 files.  [default: cellranger]
+* `-d, --outdir DIRECTORY`: Directory to save files to.  If none is give, save in the directory from which the script was called.
+* `-c, --cores INTEGER`: Number of cores to use for parallel processing.  [default: 18]
+* `-r, --rc-R2 / -R, --no-rc-R2`: Should the reverse complement of R2 be used? Pass &#x27;--rc-R2&#x27; if the reads were generated on a NextSeq or v1.0 chemistry NovaSeq.  [default: no-rc-R2]
+* `-j, --conjugation [TotalSeqA|TotalSeqB]`: String specifying antibody conjugation; either TotalSeqA or TotalSeqB  [default: TotalSeqA]
+* `--debug`: Print extra information for debugging.
+* `--save_log`: Save the log to a file
+* `--version`: Print version number.
+* `--help`: Show this message and exit.
 
-This code works for one biological sample at a time. If multiple samples are supplied in the 
-command line execution, then they will be merged (under the assumption that they were
-called different things). Execute the code sequentially for each sample in the event of 
-multiple biological samples. 
 
+### Example usage:
 
-## Options
+Assuming we have FASTQs from bcl-convert in the folder `/path/to/fastq/folder/sample_1` that are named:
+* sample_1_prot_S11_L004_R1_001.fastq.gz
+* sample_1_prot_S11_L004_R2_001.fastq.gz
+* sample_1_prot_S11_L004_I1_001.fastq.gz
+* sample_1_prot_S11_L004_I2_001.fastq.gz
 
-```
-python asap_to_kite_v1.py --help
-```
-
-yields
-
-```
-Usage: asap_to_kite_v1.py [options] [inputs] Script to reformat raw sequencing 
-data from CellRanger-ATAC demultiplexing to a format 
-compatible with kite (kallisto|bustools)
-
-Options:
-  -h, --help            show this help message and exit
-  -f FASTQS, --fastqs=FASTQS
-                        Path of folder created by mkfastq or bcl2fastq; can be
-                        comma separated that will be collapsed into one
-                        output.
-  -s SAMPLE, --sample=SAMPLE
-                        Prefix of the filenames of FASTQs to select; can be
-                        comma separated that will be collapsed into one output
-  -o ID, --id=ID        A unique run id, used to name output.
-  -c CORES, --cores=CORES
-                        Number of cores for parallel processing. Default = 4.
-  -n NREADS, --nreads=NREADS
-                        Maximum number of reads to process in one iteration.
-                        Decrease this if in a low memory environment (e.g.
-                        laptop). Default = 10,000,000.
-  -r, --no-rc-R2        By default, the reverse complement of R2 (barcode) is
-                        performed (when sequencing with, for example, the
-                        NextSeq). Throw this flag to keep R2 as is-- no
-                        reverse complement (rc).
+```console
+asap-o-matic \
+    --fastqs /path/to/fastq/folder \
+    --sample sample_1_prot \
+    --id sample_1_reformatted \
+    --conjugation TotalSeqB \
+    --outdir /path/to/output/sample_1 \
+    --cores 24 \
+    --no-rc-R2
 ```
 
-<br><br>
+The resulting reformatted reads will be output as:
+* /path/to/output/sample_1/sample_1_reformatted_R1.fastq.gz
+* /path/to/output/sample_1/sample_1_reformatted_R2.fastq.gz
 

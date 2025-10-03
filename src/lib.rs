@@ -64,7 +64,7 @@ fn rearrange_reads(
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn asap_o_matic(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _rust_o_matic(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(format_read, m)?)?;
     m.add_function(wrap_pyfunction!(rearrange_reads, m)?)?;
     // m.add_function(wrap_pyfunction!(asap_to_kite, m)?)?;

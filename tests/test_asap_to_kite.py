@@ -1,5 +1,6 @@
 import hashlib
 import importlib.resources as ir
+from importlib.resources.abc import Traversable
 from pathlib import Path
 
 import fastq as fq
@@ -8,43 +9,44 @@ from asap_o_matic import asap_to_kite
 
 
 @pytest.fixture
-def read1_file():
+def read1_file() -> Traversable:
     return ir.files("tests").joinpath("data", "cellranger", "test_S_S3_R1_001.fastq.gz")
 
 
 @pytest.fixture
-def read2_file():
+def read2_file() -> Traversable:
     return ir.files("tests").joinpath("data", "cellranger", "test_S_S3_R2_001.fastq.gz")
 
 
 @pytest.fixture
-def read3_file():
+def read3_file() -> Traversable:
     return ir.files("tests").joinpath("data", "cellranger", "test_S_S3_R3_001.fastq.gz")
 
 
 @pytest.fixture
-def expected_read1():
+def expected_read1() -> Traversable:
     return ir.files("tests").joinpath("data", "kite_results", "expected_read1.fastq")
 
 
 @pytest.fixture
-def expected_read2():
+def expected_read2() -> Traversable:
     return ir.files("tests").joinpath("data", "kite_results", "expected_read2.fastq")
 
 
-def test_asap_to_kite(read1_file, read2_file, read3_file, expected_read1, expected_read2, tmp_path):
+def test_asap_to_kite(read1_file: Path, read2_file: Path, read3_file: Path, expected_read1: Path, expected_read2: Path, tmp_path: Path) -> None:
     new_read1 = tmp_path.joinpath("new_read1.fastq")
     new_read2 = tmp_path.joinpath("new_read2.fastq")
-    for a, b, c in zip(fq.read(read1_file), fq.read(read2_file), fq.read(read3_file), strict=True):
+    for a, b, c in zip(fq.read(str(read1_file)), fq.read(str(read2_file)), fq.read(str(read3_file)), strict=True):
+        # unclear on why, but pyright gets the types mixed up here? thus the ignores
         asap_to_kite(
-            read1=a,
-            read2=b,
-            read3=c,
+            read1=a,  # pyright: ignore[reportArgumentType]
+            read2=b,  # pyright: ignore[reportArgumentType]
+            read3=c,  # pyright: ignore[reportArgumentType]
             rc_R2=False,
             conjugation="TotalSeqB",
-            new_read1_handle=new_read1,
-            new_read2_handle=new_read2,
-        )
+            new_read1_handle=str(new_read1),
+            new_read2_handle=str(new_read2),
+        ) # type: ignore
     assert compare_files(new_read1, expected_read1)
     assert compare_files(new_read2, expected_read2)
 

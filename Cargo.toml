@@ -1,13 +1,12 @@
 [package]
 name = "asap-o-matic"
-version = "2.2.0"
+version = "2.5.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "asap_o_matic"
+name = "_rust_o_matic"
 crate-type = ["cdylib"]
 
 [dependencies.pyo3]
 version = "0.22.2"
-features = ["abi3-py310"]
+features = ["abi3-py311"]

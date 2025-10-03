@@ -1,64 +1,66 @@
 """Nox sessions."""
 
-import os
-import sys
 from pathlib import Path
 
 import nox
+import nox_uv as nu
 
-PACKAGE = "revseq"
-PYTHON_VERSIONS = ["3.10", "3.11", "3.12"]
-os.environ["PDM_IGNORE_SAVED_PYTHON"] = "1"
-os.environ["PDM_IGNORE_ACTIVE_VENV"] = "0"
-nox.needs_version = ">=2024.4.15"
+PACKAGE = "asap_o_matic"
+PYTHON_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
+PRIMARY_PYTHON_VERSION = "3.12"
+
+nox.needs_version = ">=2025.5.1"
 nox.options.sessions = (
-    "mypy",
-    "tests",
+    "typecheck",
+    "lint",
+    "test",
 )
+
+nox.options.default_venv_backend = "uv"
 
 locations = (
-    "src",
+    "python",
     "tests",
 )
 
-
-@nox.session(python="3.10")
-def mypy(session: nox.Session) -> None:
+@nu.session(python=PRIMARY_PYTHON_VERSION, uv_groups=["type_check"], uv_sync_locked=True)
+def typecheck(s: nox.Session) -> None:
     """Type-check using mypy."""
-    session.run_always("pdm", "install", "--no-self", "--no-default", "--dev", external=True)
-    session.run(
-        "mypy",
-        "--install-types",
-        "--non-interactive",
-        f"--python-executable={sys.executable}",
-        "noxfile.py",
-        external=True,
+    _ = s.run(
+        "ty",
+        "check",
+        "python/"
+    )
+
+@nu.session(python=PRIMARY_PYTHON_VERSION, uv_groups=["lint"], uv_sync_locked=True)
+def lint(s: nox.Session) -> None:
+    """Type-check using mypy."""
+    _ = s.run(
+        "ruff",
+        "check",
+        "--fix",
+        "python"
+    )
+
+@nu.session(python=PYTHON_VERSIONS, uv_groups=["test"], uv_sync_locked=True)
+def test(s: nox.Session) -> None:
+    """Run the test suite."""
+    s.install(".")
+    _ = s.run(
+        "pytest",
+        "--cov=asap_o_matic",
+        "tests",
     )
 
 
-@nox.session(python=PYTHON_VERSIONS)
-def lockfile(session: nox.Session) -> None:
-    """Run the test suite."""
-    session.run_always("pdm", "lock", external=True)
-
-
-@nox.session(python=PYTHON_VERSIONS)
-def tests(session: nox.Session) -> None:
-    """Run the test suite."""
-    session.run_always("pdm", "install", "--fail-fast", "--frozen-lockfile", "--dev", external=True)
-    session.run(
-        "coverage", "run", "--parallel", "-m", "pytest", "--numprocesses", "auto", "--random-order", external=True
-    )
-
-
-@nox.session(python="3.10")
-def coverage(session: nox.Session) -> None:
+@nu.session(python=PRIMARY_PYTHON_VERSION, uv_groups=["coverage"], uv_sync_locked=True)
+def coverage(s: nox.Session) -> None:
     """Produce the coverage report."""
-    args = session.posargs or ["report"]
-    session.install("coverage[toml]", "codecov", external=True)
+    args = s.posargs or ["report"]
+    s.install("coverage[toml]", "codecov", external=True)
+    s.install(".")
+    if not s.posargs and any(Path().glob(".coverage.*")):
+        _ = s.run("coverage", "combine")
 
-    if not session.posargs and any(Path().glob(".coverage.*")):
-        session.run("coverage", "combine")
-
-    session.run("coverage", "json", "--fail-under=0")
-    session.run("codecov", *args)
+    _ = s.run("coverage", "json", "--fail-under=0")
+    _ = s.run("codecov", *args)

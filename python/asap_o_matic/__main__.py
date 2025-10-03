@@ -1,37 +1,41 @@
-import sys
 import tempfile
-from enum import StrEnum
+from enum import Enum
 from importlib.metadata import PackageNotFoundError, version
 from itertools import chain
 from multiprocessing import cpu_count
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated
 
 import fastq as fq
 import pysam
 import typer
-from joblib import Parallel, delayed
+
+# neither pyright nor ty seem to be able to understand a maturin project?
+from _rust_o_matic import (  # pyright: ignore[reportMissingImports] # type: ignore
+    format_read,  # pyright: ignore[reportUnknownVariableType]
+    rearrange_reads,  # pyright: ignore[reportUnknownVariableType]
+)
+from joblib import Parallel, delayed  # pyright: ignore[reportUnknownVariableType]
 from loguru import logger
 from revseq import revseq
 from rich import print as rp
 from rich.progress import track
 
-# from rich.traceback import install
-from asap_o_matic.asap_o_matic import format_read, rearrange_reads
-from asap_o_matic.logger import init_logger
+from .logger import init_logger
 
 try:
-    __version__ = version(__package__)
+    if __package__ is not None:
+        __version__ = version(__package__)
 except PackageNotFoundError:  # pragma: no cover
     __version__ = "unknown"
 
 
-class Conjugation(StrEnum):
+class Conjugation(str, Enum):
     TotalSeqA = "TotalSeqA"
     TotlaSeqB = "TotalSeqB"
 
 
-class FastqSource(StrEnum):
+class FastqSource(str, Enum):
     cellranger = "cellranger"
     bclconvert = "bcl-convert"
 
@@ -73,9 +77,7 @@ def verbosity(
 
 
 # TODO: ideally, this would also check that the first line for each read triplet matches
-def verify_sample_from_R1(
-    list_of_R1s: list[Path], fastq_source: FastqSource = FastqSource.bclconvert
-) -> list[Path]:
+def verify_sample_from_R1(list_of_R1s: list[Path], fastq_source: FastqSource = FastqSource.bclconvert) -> list[Path]:
     """Verify R1/R2/R3 are present for nominated samples
 
     Parameters
@@ -145,10 +147,6 @@ def parse_directories(
     logger.debug(f"Found {', '.join([str(_) for _ in all_read1s])}")
     return verify_sample_from_R1(all_read1s, fastq_source)
 
-
-# def formatRead(title: str, sequence: str, quality: str) -> str:
-#     # Reformat read for export
-#     return f"@{title}\n{sequence}\n+\n{quality}\n"
 
 @logger.catch
 def asap_to_kite(
@@ -251,7 +249,7 @@ def main(
         ),
     ] = FastqSource.cellranger,
     outdir: Annotated[
-        Optional[Path],
+        Path | None,
         typer.Option(
             "--outdir",
             "-d",
@@ -260,7 +258,7 @@ def main(
             resolve_path=True,
             dir_okay=True,
             readable=True,
-            writable=True
+            writable=True,
         ),
     ] = None,
     n_cpu: Annotated[
@@ -339,11 +337,14 @@ def main(
             case "cellranger":
                 read2_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R2"))
                 read3_file = read1_file.parent.joinpath(read1_file.name.replace("R1", "R3"))
+            case _:
+                msg = "This program only understands reads demuxed by 'bcl-convert' or 'cellranger'"
+                raise RuntimeError(msg)
 
         # No need to chunk when we use an iterator
-        read1 = fq.read(read1_file)
-        read2 = fq.read(read2_file)
-        read3 = fq.read(read3_file)
+        read1 = fq.read(str(read1_file))
+        read2 = fq.read(str(read2_file))
+        read3 = fq.read(str(read3_file))
 
         if n_cpu > 1:
             parallel = Parallel(n_jobs=n_cpu, return_as="list")
@@ -377,9 +378,9 @@ def main(
 
         for i, output in enumerate((outfq1file, outfq2file)):
             if output.exists():
-                logger.info(f"Wrote new read {i+1} to {output.resolve()}")
+                logger.info(f"Wrote new read {i + 1} to {output.resolve()}")
             else:
-                msg = f"Attempted to write read {i+1} to {output.resolve()}, but the output does not appear to exist."
+                msg = f"Attempted to write read {i + 1} to {output.resolve()}, but the output does not appear to exist."
                 logger.exception(msg)
                 raise FileNotFoundError(msg)
 
