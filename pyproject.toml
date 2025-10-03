@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "asap-o-matic"
-version = "2.5.0"
+version = "2.5.1"
 description = "Rearrange ASAP-seq antibody reads into something Alevin can recognize and count."
 authors = [
     { name = "Miles Smith", email = "miles-smith@omrf.org" }
@@ -24,14 +24,22 @@ dependencies = [
     "pysam>=0.23.0",
 ]
 classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Rust",
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Typing :: Typed",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 [project.urls]
@@ -43,6 +51,7 @@ asap-o-matic = "asap_o_matic.__main__:app"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+strip = true
 profile = "release"
 manifest-path = "Cargo.toml"
 frozen = false

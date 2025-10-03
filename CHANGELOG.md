@@ -1,5 +1,12 @@
 # CHANGELOG
 
+# [2.5.1] - 2025-10-03
+
+## Added
+
+- Eye-candy to the README.md
+- Additional trove classifiers to pyproject.toml
+
 # [2.5.0] - 2025-10-03
 
 ## Added
@@ -138,6 +145,7 @@ still annoying)
 - Reworked previous script to act as an installble package
 - Added logging, (at least some) typing, etc...
 
+[2.5.1]: https://github.com/milescsmith/asap_o_matic/compare/2.5.0..2.5.1
 [2.5.0]: https://github.com/milescsmith/asap_o_matic/compare/2.4.0..2.5.0
 [2.4.0]: https://github.com/milescsmith/asap_o_matic/compare/2.3.0..2.4.0
 [2.3.0]: https://github.com/milescsmith/asap_o_matic/compare/2.2.0..2.3.0

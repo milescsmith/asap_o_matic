@@ -1,5 +1,13 @@
 # asap-o-matic
 
+[![codecov](https://codecov.io/gh/milescsmith/asap_o_matic/graph/badge.svg?token=hu7JytF189)](https://codecov.io/gh/milescsmith/asap_o_matic)
+[![PyPI version](https://badge.fury.io/py/asap-o-matic.svg)](https://badge.fury.io/py/asap-o-matic)
+[![](https://img.shields.io/pypi/l/asap-o-matic.svg)](https://github.com/milescsmith/asap_o_matic/blob/main/LICENSE)
+[![image](https://img.shields.io/pypi/pyversions/asap-o-matic.svg)](https://pypi.python.org/pypi/asap-o-matic)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
+![Alt](https://repobeats.axiom.co/api/embed/f1b4bb2f7e8274fa08b39844f2ef37bfe02c0daf.svg "Repobeats analytics image")
+
 asap-o-matic provides the ability to process [ASAP-seq](https://www.nature.com/articles/s41587-021-00927-2) FASTQs for
 downstream processing and counting of the antibody-dependent reads using [Salmon Alevin](https://salmon.readthedocs.io/en/latest/alevin.html).
 
@@ -17,13 +25,13 @@ how to count. asap-o-matic reformats those reads so that they appear like those 
 The easiest way is to run via [uv](https://github.com/astral-sh/uv):
 
 ```console
-uv tool install asap_o_matic
+uv tool install asap-o-matic
 ```
 
 Alteratively, it can be installed using `pip` 
 
 ```console
-pip install asap_o_matic
+pip install asap-o-matic
 ```
 
 or `uv`:
