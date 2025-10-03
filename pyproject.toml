@@ -63,7 +63,7 @@ bindings = "pyo3"
 python-source = "python"
 sdist-generator = "cargo"
 python-packages = ["asap_o_matic"]
-module_name = "asap_o_matic._rust_o_matic"
+module_name = "asap_o_matic._asap_o_matic"
 
 [tool.pytest.ini_options]
 addopts = [

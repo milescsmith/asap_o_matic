@@ -11,7 +11,7 @@ import pysam
 import typer
 
 # neither pyright nor ty seem to be able to understand a maturin project?
-from _rust_o_matic import (  # pyright: ignore[reportMissingImports] # type: ignore
+from _asap_o_matic import (  # pyright: ignore[reportMissingImports] # type: ignore
     format_read,  # pyright: ignore[reportUnknownVariableType]
     rearrange_reads,  # pyright: ignore[reportUnknownVariableType]
 )
@@ -363,9 +363,9 @@ def main(
         else:
             for a, b, c in track(zip(read1, read2, read3, strict=True), transient=False):
                 asap_to_kite(
-                    read1=a,
-                    read2=b,
-                    read3=c,
+                    read1=a,  # pyright: ignore[reportArgumentType]
+                    read2=b,  # pyright: ignore[reportArgumentType]
+                    read3=c,  # pyright: ignore[reportArgumentType]
                     rc_R2=rc_R2,
                     conjugation=conjugation,
                     new_read1_handle=tempfq1file.name,

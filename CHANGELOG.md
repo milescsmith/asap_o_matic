@@ -7,6 +7,12 @@
 - Eye-candy to the README.md
 - Additional trove classifiers to pyproject.toml
 
+## Changed
+
+- Actually read the `maturin` documentation and figured out how I'm supposed to properly name and import
+    a Rust submodule
+    - So `_rust_o_matic` goes back to `_asap_o_matic`
+
 # [2.5.0] - 2025-10-03
 
 ## Added
