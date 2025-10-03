@@ -1,5 +1,23 @@
 # CHANGELOG
 
+# [2.5.0] - 2025-10-03
+
+## Added
+
+- An actual README.md, with updates to reflect how to actually use asap-o-matic
+- Added several instances of casting from a `pathlib.Path` object to a `str`
+- Added type hints to the unit tests
+
+## Changed
+
+- Increased minimum Python version to 3.11
+- Increased Python versions tested to include 3.11 to 3.14
+- Replaced use of pdm with uv
+- Update noxfile to use uv
+- Replaced use of mypy with ty
+- Renamed Rust submodule to `_rust_o_matic`
+- Updated Rust dependencies
+
 # [2.4.0] - 2025-02-05
 
 ## Added
@@ -120,6 +138,15 @@ still annoying)
 - Reworked previous script to act as an installble package
 - Added logging, (at least some) typing, etc...
 
+[2.5.0]: https://github.com/milescsmith/asap_o_matic/compare/2.4.0..2.5.0
+[2.4.0]: https://github.com/milescsmith/asap_o_matic/compare/2.3.0..2.4.0
+[2.3.0]: https://github.com/milescsmith/asap_o_matic/compare/2.2.0..2.3.0
+[2.2.0]: https://github.com/milescsmith/asap_o_matic/compare/2.1.1..2.2.0
+[2.1.1]: https://github.com/milescsmith/asap_o_matic/compare/2.1.0..2.1.1
+[2.1.0]: https://github.com/milescsmith/asap_o_matic/compare/2.0.0..2.1.0
+[2.0.0]: https://github.com/milescsmith/asap_o_matic/compare/1.4.1..2.0.0
+[1.4.1]: https://github.com/milescsmith/asap_o_matic/compare/1.4.0..1.4.1
+[1.4.0]: https://github.com/milescsmith/asap_o_matic/compare/1.3.0..1.4.0
 [1.2.0]: https://github.com/milescsmith/asap_o_matic/compare/1.2.0..1.3.0
 [1.2.0]: https://github.com/milescsmith/asap_o_matic/compare/1.1.0..1.2.0
 [1.1.0]: https://github.com/milescsmith/asap_o_matic/compare/1.0.0..1.1.0
