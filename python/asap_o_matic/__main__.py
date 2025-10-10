@@ -9,17 +9,17 @@ from typing import Annotated
 import fastq as fq
 import pysam
 import typer
-
-# neither pyright nor ty seem to be able to understand a maturin project?
-from _asap_o_matic import (  # pyright: ignore[reportMissingImports] # type: ignore
-    format_read,  # pyright: ignore[reportUnknownVariableType]
-    rearrange_reads,  # pyright: ignore[reportUnknownVariableType]
-)
 from joblib import Parallel, delayed  # pyright: ignore[reportUnknownVariableType]
 from loguru import logger
 from revseq import revseq
 from rich import print as rp
 from rich.progress import track
+
+# neither pyright nor ty seem to be able to understand a maturin project?
+from asap_o_matic.asap_o_matic import (  # pyright: ignore[reportMissingImports] # type: ignore
+    format_read,  # pyright: ignore[reportUnknownVariableType]
+    rearrange_reads,  # pyright: ignore[reportUnknownVariableType]
+)
 
 from .logger import init_logger
 
